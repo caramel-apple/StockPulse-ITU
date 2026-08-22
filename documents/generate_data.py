@@ -56,11 +56,12 @@ for facility in facilities:
             weather_type = active_weather
 
             #simulate regional flu rates (higher in winter)
-            flu_rate = np.random.normal(50,10) + (25 if is_winter else 0)
-
+            raw_flu = np.random.normal(50,10) + (25 if is_winter else 0)
+            flu_rate = np.clip(raw_flu,0,100)
+    
             #simulate local temp (in celsius) extreme heat during summer, moderate otherwise
             base_temp = 44 if is_summer else 23
-            local_temp = np.random.normal(base_temp, 3.5)
+            local_temp = np.clip(np.random.normal(base_temp, 3.5),10, 52)
 
             #patient admissions
             #base patient census for a hospital
@@ -96,7 +97,7 @@ for facility in facilities:
             elif item == "Antibiotics":
                 consumption_per_patient = 1.8
                 item_base_spike = 15 if weather_type == "Heatwave" else 10
-            else: #antibiotics
+            else: #painkillers
                 consumption_per_patient = 0.8
                 item_base_spike = 15 if is_winter else 0
 
