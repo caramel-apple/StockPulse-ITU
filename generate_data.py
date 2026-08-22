@@ -90,6 +90,18 @@ for facility in facilities:
 
             #calcualte total admitted patients for the day using nd
             total_admitted_patients = int(max(50, np.random.normal(base_patients + patient_surge, 12)))
+
+        #dictionary for the day's record
+        daily_record = {
+            "Timestamp": date.strftime("%Y-%m-%d"),
+            "Facility_ID": facility,
+            "Local_Temp_C": round(local_temp, 1),
+            "Seasonal_Flu_Rate": round(flu_rate, 2),
+            "Weather_Alert_Flag": weather_alert,
+            "Weather_Type": weather_type,
+            "Admitted_Patients": total_admitted_patients,
+        }
+
         for item in items:
             #intventory consumption logic
             if item == "N95_Masks":
@@ -119,18 +131,11 @@ for facility in facilities:
 
             units_used = max(10, units_used) #inventory use should never be negative
 
-            #append structured record to data list
-            data.append({
-                "Timestamp": date.strftime("%Y-%m-%d"),
-                "Facility_ID": facility,
-                "Supply_Item_Type": item,
-                "Local_Temp_C": round(local_temp, 1),
-                "Seasonal_Flu_Rate": round(flu_rate, 2),
-                "Weather_Alert_Flag": weather_alert,
-                "Weather_Type": weather_type,
-                "Admitted_Patients": total_admitted_patients,
-                "Units_Used": units_used,
-            })
+            #assign to column name
+            daily_record[f'Units_{item}'] = units_used
+
+        #append to list
+        data.append(daily_record)
 
 #convert master list into pandas dataframe
 df_synthetic = pd.DataFrame(data)
