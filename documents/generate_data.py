@@ -21,33 +21,46 @@ data = []
 
 #loop through every facility, item type, day
 for facility in facilities:
-    for item in items:
-        for date in dates:
-            #extract motnth, year to calculate season
-            month = date.month
-
-            #determine if current month is in winter (Nov-Feb)
+    #track active weather states across days for multi-day persistence
+    active_weather = "None"
+    weather_days_remaining = 0
+    for date in dates:
+        #extract month, year to calculate season
+        month = date.month
+        for item in items:
+            #define seasons 
             is_winter = month in [11, 12, 1, 2]
+            is_summer = month in [6,7,8,9]
+
+            #multi_day weather persistence
+            if weather_days_remaining > 0:
+                #weather event continues from previous days
+                weather_days_remaining -=1
+            else:
+                #check if new weather event triggers
+                new_event_roll = np.random.rand()
+                if new_event_roll < 0.03:
+                    if is_summer:
+                        active_weather = "Heatwave"
+                        weather_days_remaining = np.random.randint(3,6)
+                        #heatwave between 3-6 days
+                    else:
+                        active_weather = "Sandstorm/Dust_Storm"
+                        weather_days_remaining = np.random.randint(1,3)
+                        #sandstorm between 1-3 days 
+                else:
+                    active_weather = "None"
+
+            #flags based on active weather state
+            weather_alert = 1 if active_weather != "None" else 0
+            weather_type = active_weather
 
             #simulate regional flu rates (higher in winter)
             flu_rate = np.random.normal(50,10) + (25 if is_winter else 0)
 
-            #simulate local temp (in celsius) higher in summer (Jun-Aug)
-            base_temp = 38 if month in [6, 7, 8] else 23
-            local_temp = np.random.normal(base_temp, 4)
-
-            #simulate severe weather events (5% chance of sandstorm daily)
-            weather_alert = 1 if np.random.rand() < 0.05 else 0
-
-            #determine weather event ype based on temp and alert flag
-            if weather_alert == 1:
-                weather_type = (
-                    "Heatwave" if local_temp > 40 else "Sandstorm/Dust_Storm"
-
-                )
-            else:
-                weather_type = "None"
-
+            #simulate local temp (in celsius) extreme heat during summer, moderate otherwise
+            base_temp = 44 if is_summer else 23
+            local_temp = np.random.normal(base_temp, 3.5)
 
             #patient admissions
             #base patient census for a hospital
@@ -58,9 +71,9 @@ for facility in facilities:
             if is_winter:
                 patient_surge += 25
 
-            #severe weather events cause emergency department surge (heatstroke, asthma)
+            #severe weather events cause cumulative strain
             if weather_alert == 1:
-                patient_surge +=40
+                patient_surge +=45
 
             #calcualte total admitted patients for the day using nd
             total_admitted_patients = int(max(50, np.random.normal(base_patients + patient_surge, 12)))
@@ -71,9 +84,10 @@ for facility in facilities:
                 item_base_spike = 30 if weather_type == "Sandstorm/Dust_Storm" else 0
             elif item == "IV_Fluids":
                 consumption_per_patient = 2.5
-                item_base_spike = 60 if weather_type == "Heatwave" else -0
+                item_base_spike = (70 if weather_type == "Heatwave" else 0)
+                #spike during heatwave
             elif item == "Inhalers":
-                comsuption_per_patient = 0.9
+                consumption_per_patient = 0.9
                 item_base_spike = (40 if weather_type == "Sandstorm/Dust_Storm" else 0)
                 #spike during dust storms
             elif item == "Insulin_Vials":
@@ -81,13 +95,13 @@ for facility in facilities:
                 item_base_spike = 0 #steady chronic demand
             elif item == "Antibiotics":
                 consumption_per_patient = 1.8
-                item_base_spike = 10 #genera; high daily usage
+                item_base_spike = 15 if weather_type == "Heatwave" else 10
             else: #antibiotics
                 consumption_per_patient = 0.8
                 item_base_spike = 15 if is_winter else 0
 
             #final units used 
-            noise = np.random.normal(0.10)
+            noise = np.random.normal(0,10)
             units_used = int((total_admitted_patients * consumption_per_patient) + item_base_spike + noise)
 
             units_used = max(10, units_used) #inventory use should never be negative
