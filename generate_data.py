@@ -27,29 +27,41 @@ for facility in facilities:
     for date in dates:
         #extract month, year to calculate season
         month = date.month
-        for item in items:
-            #define seasons 
-            is_winter = month in [11, 12, 1, 2]
-            is_summer = month in [6,7,8,9]
+        #define seasons 
+        is_winter = month in [11, 12, 1, 2]
+        is_summer = month in [6,7,8,9]
 
-            #multi_day weather persistence
-            if weather_days_remaining > 0:
-                #weather event continues from previous days
-                weather_days_remaining -=1
-            else:
-                #check if new weather event triggers
-                new_event_roll = np.random.rand()
-                if new_event_roll < 0.03:
-                    if is_summer:
+        #multi_day weather persistence
+        if weather_days_remaining > 0:
+            #weather event continues from previous days
+            weather_days_remaining -=1
+        else:
+            #check if new weather event triggers
+            new_event_roll = np.random.rand()
+            if new_event_roll < 0.04:
+                #spring (prime dust storm season)
+                if month in [3,4,5]:
+                    if np.random.rand() < 0.85:
+                        active_weather = "Sandstorm/Dust_Storm"
+                        weather_days_remaining = np.random.randint(1,3)
+                    else:
+                        active_weather = "Heatwave"
+                        weather_days_remaining = np.random.randint(2,4)
+                if is_summer:
+                    if np.random.rand() < 0.75:
                         active_weather = "Heatwave"
                         weather_days_remaining = np.random.randint(3,6)
-                        #heatwave between 3-6 days
                     else:
                         active_weather = "Sandstorm/Dust_Storm"
                         weather_days_remaining = np.random.randint(1,3)
-                        #sandstorm between 1-3 days 
-                else:
-                    active_weather = "None"
+                else: #autumn/winter
+                    if np.random.rand() < 0.35:
+                        active_weather = "Sandstorm/Dust_Storm"
+                        weather_days_remaining = np.random.randint(1,2)
+                    else:
+                        active_weather = "None"
+            else:
+                active_weather = "None"
 
             #flags based on active weather state
             weather_alert = 1 if active_weather != "None" else 0
@@ -78,7 +90,7 @@ for facility in facilities:
 
             #calcualte total admitted patients for the day using nd
             total_admitted_patients = int(max(50, np.random.normal(base_patients + patient_surge, 12)))
-
+        for item in items:
             #intventory consumption logic
             if item == "N95_Masks":
                 consumption_per_patient = 1.2
