@@ -140,6 +140,20 @@ for facility in facilities:
 #convert master list into pandas dataframe
 df_synthetic = pd.DataFrame(data)
 
+#ensure data is sorted before shifting
+df_synthetic["Timestamp"] = pd.to_datetime(df_synthetic["Timestamp"])
+df_synthetic = df_synthetic.sort_values(by=["Facility_ID", "Timestamp"]).reset_index(drop=True)
+
+#define number of days in the future shouldbe forecasted
+forecast_horizon = 7
+
+#shift target item columns backawards to represent future demand 
+for item in items:
+    df_synthetic[f"Target_{item}_7d_Ahead"] = df_synthetic.groupby("Facility_ID")[f"Units_{item}"].shift(-forecast_horizon)
+
+#last few rows dropped
+df_synthetic = df_synthetic.dropna().reset_index(drop=True)
+
 #export dataframe into a csv file saved in project folder
 df_synthetic.to_csv("StockPulse_synthetic_data.csv", index = False)
 
