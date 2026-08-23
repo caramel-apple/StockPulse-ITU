@@ -69,11 +69,14 @@ for facility in facilities:
 
             #simulate regional flu rates (higher in winter)
             raw_flu = np.random.normal(50,10) + (25 if is_winter else 0)
-            flu_rate = np.clip(raw_flu,0,100)
-    
-            #simulate local temp (in celsius) extreme heat during summer, moderate otherwise
-            base_temp = 44 if is_summer else 23
-            local_temp = np.clip(np.random.normal(base_temp, 3.5),10, 52)
+            flu_rate = np.clip(raw_flu, 0, 100)
+
+            #temperature curve
+            day_of_year = date.dayofyear
+            #centers the  sine wave to 21 high in Jan ans 43 high in the summer
+            annual_temp_cycle = 32.5 + 10.5 * np.sin(2 * np.pi * (day_of_year - 110) / 365)
+            #daily high variance with 16-48 as boundaries
+            local_temp = np.clip(np.random.normal(annual_temp_cycle, 1.8), 16, 48)
 
             #patient admissions
             #base patient census for a hospital
