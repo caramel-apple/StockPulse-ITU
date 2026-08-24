@@ -1,1 +1,9 @@
+#generated dataset file
 StockPulse_synthetic_data.csv
+#python cache
+__pycahce__/
+*.pyc
+#local vector db
+faiss_db/
+#docs folder
+documents/
