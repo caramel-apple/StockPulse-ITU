@@ -1,3 +1,5 @@
+#imports
+
 import os
 import sys
 from langchain_community.document_loaders import (
@@ -8,26 +10,23 @@ from langchain_community.document_loaders import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import CTransformers
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# Swapped CTransformers for ChatOllama
+from langchain_ollama import ChatOllama
+from langchain_classic.chains import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# ---------------------------------------------------------
-# CONFIGURATION & PATHS (Steps 3 & 5)
-# ---------------------------------------------------------
-DOCS_DIR = "./docs"
+#configuration and paths
+DOCS_DIR = "./documents"
 FAISS_INDEX_PATH = "./faiss_db"
-# Update this filename to match your exact downloaded GGUF model in ./models/
-MODEL_PATH = "./models/mistral-7b-instruct-v0.1.Q4_K_M.gguf" 
+OLLAMA_MODEL_NAME = "hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF" 
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-# ---------------------------------------------------------
-# 1. LOAD & INDEX DOCUMENTS (Steps 6, 7 & 8)
-# ---------------------------------------------------------
+#load and index documents
 print("[+] Initializing Hugging Face Embeddings...")
 embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
 
+#check  if documents are already indexed
 if os.path.exists(FAISS_INDEX_PATH):
     print("[+] Loading existing FAISS index from disk...")
     vectorstore = FAISS.load_local(
@@ -38,42 +37,43 @@ if os.path.exists(FAISS_INDEX_PATH):
 else:
     print("[+] Processing documents from ./docs...")
     
-    # Load PDFs, TXTs, and MDs
+    #load pdf,txt,md
     pdf_loader = DirectoryLoader(DOCS_DIR, glob="**/*.pdf", loader_cls=PyPDFLoader)
     txt_loader = DirectoryLoader(DOCS_DIR, glob="**/*.txt", loader_cls=TextLoader)
     md_loader = DirectoryLoader(DOCS_DIR, glob="**/*.md", loader_cls=TextLoader)
     
     documents = pdf_loader.load() + txt_loader.load() + md_loader.load()
-    
+
+    #if no documents
     if not documents:
         print("[!] No documents found in ./docs. Please add .pdf, .txt, or .md files.")
         sys.exit(1)
         
     print(f"[+] Loaded {len(documents)} document page(s). Splitting into chunks...")
-    
+
+    #chunking
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = text_splitter.split_documents(documents)
-    
+
+    #vectorizing
     print(f"[+] Generating embeddings and building FAISS index for {len(chunks)} chunks...")
     vectorstore = FAISS.from_documents(chunks, embeddings)
     vectorstore.save_local(FAISS_INDEX_PATH)
     print("[+] FAISS index saved successfully!")
 
-# ---------------------------------------------------------
-# 2. SETUP LOCAL GGUF LLM (Step 9)
-# ---------------------------------------------------------
-print("[+] Loading local GGUF model...")
-if not os.path.exists(MODEL_PATH):
-    print(f"[!] Model file not found at {MODEL_PATH}. Place your .gguf file in ./models/")
-    sys.exit(1)
 
-llm = CTransformers(
-    model=MODEL_PATH,
-    model_type="mistral",  # Change to 'llama' if using a Llama-based GGUF
-    config={"max_new_tokens": 512, "temperature": 0.2, "context_length": 2048}
+#ollama setup
+print(f"[+] Connecting to local Ollama model ({OLLAMA_MODEL_NAME})...")
+
+# Initialize ChatOllama (ensure 'pip install langchain-ollama' is run if needed)
+llm = ChatOllama(
+    model=OLLAMA_MODEL_NAME,
+    temperature=0.2,
+    num_predict=512,
+    num_ctx=2048
 )
 
-# System Prompt Tailored for StockPulse Healthcare
+# systemp prompt
 system_prompt = (
     "You are StockPulse AI, an intelligent healthcare supply chain assistant.\n"
     "Use the following pieces of retrieved context to answer the user's question accurately.\n"
@@ -90,11 +90,9 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 combine_docs_chain = create_stuff_documents_chain(llm, prompt)
 rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
 
-# ---------------------------------------------------------
-# 3. INTERACTIVE CLI QUERY LOOP (Step 10)
-# ---------------------------------------------------------
+#cli query loop
 print("\n" + "="*50)
-print("  StockPulse RAG Local Assistant Ready!  ")
+print("   StockPulse RAG Local Assistant Ready!   ")
 print("="*50 + "\n")
 
 while True:
