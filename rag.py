@@ -68,16 +68,19 @@ print(f"[+] Connecting to local Ollama model ({OLLAMA_MODEL_NAME})...")
 # Initialize ChatOllama (ensure 'pip install langchain-ollama' is run if needed)
 llm = ChatOllama(
     model=OLLAMA_MODEL_NAME,
-    temperature=0.2,
+    temperature=0.0,
     num_predict=512,
     num_ctx=2048
 )
 
 # systemp prompt
 system_prompt = (
-    "You are StockPulse AI, an intelligent healthcare supply chain assistant.\n"
-    "Use the following pieces of retrieved context to answer the user's question accurately.\n"
-    "If you don't know the answer based on the context, say that the information is unavailable in the supply documents.\n\n"
+    "You are StockPulse AI, a healthcare supply chain assistant.\n"
+    "CRITICAL RULE: Answer the question strictly using ONLY the provided Context.\n"
+    "Do NOT use any outside knowledge or general training data.\n"
+    "If the answer cannot be found directly within the Context, output EXACTLY:\n"
+    "\"The information is unavailable in the supply documents.\"\n"
+    "Do not explain further or add caveats if the information is missing.\n\n"
     "Context:\n{context}"
 )
 
@@ -86,7 +89,13 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}"),
 ])
 
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+retriever = vectorstore.as_retriever(
+    search_type="similarity_score_threshold",
+    search_kwargs={
+        "k": 3,
+        "score_threshold": 0.4  # Adjust between 0.3 - 0.6 based on MiniLM performance
+    }
+)
 combine_docs_chain = create_stuff_documents_chain(llm, prompt)
 rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
 
