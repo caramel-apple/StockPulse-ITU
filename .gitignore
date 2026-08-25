@@ -7,5 +7,3 @@ __pycahce__/
 faiss_db/
 #docs folder
 documents/
-#pickle files
-*.pkl
