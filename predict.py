@@ -46,7 +46,7 @@ for item in items:
     y = df[target]
     
     #train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,shuffle = False)
     
     #train the random forest regressor
     model = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -64,7 +64,12 @@ for item in items:
     #evaluate performance
     preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, preds)
-    print(f"Model for {item} trained successfully! (MAE: {mae:.2f} units)")
+    mape = np.mean(np.abs(y_test - preds) / y_test) 
+    print(f"Model for {item} trained successfully!")
+
+    print(f"MAE:  {mae:.2f} units")
+    print(f"MAPE: {mape * 100:.2f}%")
+
     
     #save model
     models[item] = model
