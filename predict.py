@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
 import joblib
 
 #load dataset
@@ -20,21 +20,31 @@ items = ["N95_Masks", "IV_Fluids", "Antibiotics", "Inhalers", "Insulin_Vials", "
 #create lag and rolling features
 for item in items:
     consumption_col = f'Units_{item}'
-
-    #lag feature (consumption 7 days ago)
     df[f"{item}_Lag_7d"] = df.groupby("Facility_ID")[consumption_col].shift(7)
-
-    #rolling feature (7-day avg consumption)
-    df[f"{item}_Rolling_7d"] = df.groupby("Facility_ID")[consumption_col].rolling(window=7).mean().reset_index(0, drop=True)
+    df[f"{item}_Rolling_7d"] = (df.groupby("Facility_ID")[consumption_col].transform(lambda x: x.shift(1).rolling(7).mean())
+)
 
 #drop rows with NaN values due to shifting process
 df = df.dropna().reset_index(drop=True)
 
+#one-hot encoding
+df = pd.get_dummies(df, columns=["Facility_ID", "Weather_Type"], dtype=int)
+
 #define base features
 base_features = ["Local_Temp_C", "Seasonal_Flu_Rate", "Weather_Alert_Flag", "Admitted_Patients"]
+facility_features = [col for col in df.columns if col.startswith("Facility_ID_")]
+weather_features = [col for col in df.columns if col.startswith("Weather_Type_")]
+base_features = base_features + facility_features + weather_features
+
+#chronological split
+split_date = pd.Timestamp("2025-07-01")
+train_df = df[df["Timestamp"] < split_date]
+test_df = df[df["Timestamp"] >= split_date]
+
+print(f"Training data: {train_df['Timestamp'].min()} to {train_df['Timestamp'].max()}")
+print(f"Testing data: {test_df['Timestamp'].min()} to {test_df['Timestamp'].max()}")
 
 models = {}
-
 print("--- Training models---")
 
 for item in items:
@@ -46,30 +56,33 @@ for item in items:
     y = df[target]
     
     #train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,shuffle = False)
+    X_train = train_df[item_features]
+    y_train = train_df[target]
+    X_test = test_df[item_features]
+    y_test = test_df[target]
     
     #train the random forest regressor
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
     #feature importances
-    importances = model.feature_importances_
-    feature_names = item_features if 'item_features' in locals() else X.columns
-
-    feature_importance_df = pd.DataFrame({ 'Feature': X.columns, 'Importance': importances}).sort_values(by='Importance', ascending=False)
+    feature_importance_df = pd.DataFrame({
+        'Feature': item_features, 
+        'Importance': model.feature_importances_
+    }).sort_values(by='Importance', ascending=False)
+    
     print(f"\n--- Top Drivers for {item} ---")
-    print(feature_importance_df.head(3))
+    print(feature_importance_df.head(3).to_string(index=False))
 
     
     #evaluate performance
     preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, preds)
-    mape = np.mean(np.abs(y_test - preds) / y_test) 
+    mape = mean_absolute_percentage_error(y_test, preds) * 100
+    
     print(f"Model for {item} trained successfully!")
-
     print(f"MAE:  {mae:.2f} units")
-    print(f"MAPE: {mape * 100:.2f}%")
-
+    print(f"MAPE: {mape:.2f}%")
     
     #save model
     models[item] = model
