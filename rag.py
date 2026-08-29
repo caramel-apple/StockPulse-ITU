@@ -99,26 +99,28 @@ combine_docs_chain = create_stuff_documents_chain(llm, prompt)
 rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
 
 #cli query loop
-print("\n" + "="*50)
-print("   StockPulse RAG Local Assistant Ready!   ")
-print("="*50 + "\n")
+#cli query loop (Only run this loop if executing rag.py directly, not when imported)
+if __name__ == "__main__":
+    print("\n" + "="*50)
+    print("   StockPulse RAG Local Assistant Ready!   ")
+    print("="*50 + "\n")
 
-while True:
-    user_query = input("Ask a question about your inventory/documents (or 'exit' to quit): ")
-    if user_query.lower() in ["exit", "quit", "q"]:
-        break
-    if not user_query.strip():
-        continue
+    while True:
+        user_query = input("Ask a question about your inventory/documents (or 'exit' to quit): ")
+        if user_query.lower() in ["exit", "quit", "q"]:
+            break
+        if not user_query.strip():
+            continue
+            
+        print("\n[+] Searching vector database and generating response...\n")
+        response = rag_chain.invoke({"input": user_query})
         
-    print("\n[+] Searching vector database and generating response...\n")
-    response = rag_chain.invoke({"input": user_query})
-    
-    print("StockPulse AI Response:")
-    print(response["answer"])
-    
-    print("\n" + "-"*30 + "\nSources Used:")
-    for doc in response["context"]:
-        source = doc.metadata.get("source", "Unknown")
-        page = doc.metadata.get("page", "N/A")
-        print(f" - {source} (Page: {page})")
-    print("\n" + "="*50 + "\n")
+        print("StockPulse AI Response:")
+        print(response["answer"])
+        
+        print("\n" + "-"*30 + "\nSources Used:")
+        for doc in response["context"]:
+            source = doc.metadata.get("source", "Unknown")
+            page = doc.metadata.get("page", "N/A")
+            print(f" - {source} (Page: {page})")
+        print("\n" + "="*50 + "\n")
