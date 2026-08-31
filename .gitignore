@@ -5,5 +5,3 @@ __pycahce__/
 *.pyc
 #local vector db
 faiss_db/
-#docs folder
-documents/

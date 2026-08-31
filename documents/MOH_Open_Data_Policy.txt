@@ -1,0 +1,68 @@
+​MOH - Open Data Policy Sectorial Health AI & Data Management Office
+Open Data Domain
+
+​Objective:
+
+The purpose of this Open Data Policy is to cultivate an environment of trust, transparency, and accountability for health data open to the public, enabling organizations and individuals to make informed decisions. One of the most important factors for the success of a data strategy is the data management and governance program; within this framework, open data stands as a pivotal component due to its role in governance, identification, updating, and dissemination of publicly available data. Such open data initiatives aim to elevate transparency, expedite innovation, and foster growth. Additionally, this policy sets out the requirements and responsibilities of healthcare entities under the jurisdiction of the Sectorial AI and DMO to ensure alignment with relevant Saudi and regulatory standards.
+
+
+
+Data:
+The entity MUST develop a plan and strategy to facilitate the coordination and dissemination of open data. It SHOULD assess the value of each identified open datasets as per its potential applications and benefits, the public interest in the dataset and the data quality of the dataset.
+The datasets shall be prioritized for publication as per the decreasing order of their value.
+The data sets that are classified as ‘public’ by health entity SHALL be eligible for being identified as open data. In case any datasets are not classified, the entity shall classify them as per the data classification policy.
+Data sets containing detailed data MUST be ensured that they are classified as “Public” to be shared as open data 
+All data, other than classified as “Public”, MUST be de-identified to make sure that no confidential data gets leaked out if made public and also consider the approach of aggregating the information.
+The entity sharing the datasets MUST be the owner of that dataset. If not, they SHOULD take appropriate permissions from the owner to share the datasets.
+Metadata that defines and explains the raw data should be included with explanations or formulas for how data was derived or calculated to help the user understand the data and avoid misuse of the same.
+Public datasets MUST be as complete and as granular as possible, reflecting what is recorded, in compliance with the data classification policy and data privacy policy (<Link>) (Reference ID: URL). 
+The entity SHOULD identify the timeline and frequency of updating and disposing the open datasets based on business requirements.  
+Entity MUST assess whether the identified datasets can cause a privacy & security risk to any data subject or to Sectorial AI and DMO before they are published in the open data portal.
+Open datasets SHOULD be made publicly accessible in a machine-readable format that allows automated processing through APIs. 
+Data should be shared in a widely used file formats (such as CSV, XLS, JSON, XML) that facilitate machine processing.
+The published datasets SHOULD be updated as per the update frequency specified in the metadata. The update shall be done in the below scenarios:
+​There is a change to the data in the dataset.
+There is a change to the underlying metadata in the dataset.
+The entity shall make available the open dataset compiled and aggregated whenever possible to ensure the confidentiality of the data.  
+Public datasets SHOULD be available to anyone without discrimination or requirement. Any person should be able to access open data published at any time without having to identify him/herself or to provide justification for gaining access. 
+Public datasets SHOULD be made available to public free of charge.
+The entity SHOULD maintain a registry to record all the open data shared and a version history for its open datasets and document the changes that have been applied to each new version of the dataset.
+Public Datasets SHOULD enable informed civic participation and reinforce governments„ transparency and accountability to improve decision-making and enhance the provision of public services.
+Entities MUST play an active role in promoting the reuse of open data and provide necessary supporting resources and expertise. Entities should actively work on empowering a future generation of open data innovators and engaging individuals, organizations, and the general public in unlocking the value of open data.
+Monitoring and Compliance: 
+All health ecosystem entities are responsible for complying with this Policy. 
+The entity should create a compliance monitoring plan that can be used to continually assess the entity`s overall compliance with this policy. 
+Key controls should be applied in accordance with the sensitivity of the information. Controls must be physical, procedural, and technical
+Any exceptions to this policy with valid business justification require approval from Sectorial AI and DMO as a certified authority as per law. 
+If users are unsure or not clear of any point in this policy, they should seek clarification or advice from Sectorial AI and DMO. 
+at data-office@moh.gov.sa 
+or policy-data-office@moh.gov.sa
+Regulatory Authorities – in coordination with Sectorial AI and DMO – shall develop the mechanisms, procedures, and controls to resolve disputes related to open data policy.
+The Sectorial AI and DMO shall measure and monitor the KPIs related to open data periodically to ascertain entity’s progress against the open data plan. The same shall be signed off by the data governance head and published to Sectorial AI and DMO’s data governance council and to the regulator.
+The entity shall assess the user response to their published open datasets periodically following the defined open data feedback process to understand which datasets pose greater public demand. The below areas shall be analyzed:
+No. of user downloads to the dataset.
+No. of times a dataset has been accessed.
+Most searched keywords/terms.
+Most searched data categories.
+Datasets most requested by users.
+The entity shall re-prioritize the datasets to be published as per the user response to the above metrics as well as the dataset requests received in the open data portal.
+Sectorial AI and DMO shall review the annual reports submitted by entities with regards to their compliance against the policy
+Sectorial AI and DMO is entitled to initiate ad-hoc or periodic compliance audits on any entity and conduct a review of each decision to publish or refuse to publish data.
+Roles & Responsibilities:
+Entity:
+Create the open data plan
+Identify open datasets in MOH & assessing their value
+Prioritize open datasets for publication
+Acquire open data license from KSA open data portal
+Organize open data awareness campaigns in MOH
+Monitor open data KPIs periodically
+Data Privacy & Protection Manager:
+Assess identified open datasets for any personal data protection risks
+Data Stewards:
+Rectify data quality gaps of open datasets
+Update metadata, data provenance & version history against the open datasets
+Data Custodians:
+Publish identified open datasets & their APIs in MOH’s open data portal
+Convert open datasets into various identified formats for publication
+Data Owner:
+Providing approval for the publication of the open datasets
