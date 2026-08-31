@@ -1,4 +1,4 @@
-#imports
+# imports
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -7,24 +7,23 @@ from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-#defining items
+# defining items
 items_list = ["N95_Masks","IV_Fluids","Antibiotics","Inhalers","Insulin_Vials","Painkillers"]
 
-#import rag from rag.py
+# import rag from rag.py
 try:
     from rag import rag_chain
 except Exception as e:
     rag_chain = None
 
-#page configuration
+# page configuration
 st.set_page_config(
     page_title="StockPulse | Healthcare Supply & Procurement",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-#----------------------------------
-#styling
-#----------------------------------
+
+#------STYLING------
 
 st.markdown("""
 <style>
@@ -224,10 +223,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------
-# data loading and model training
-# --------------------------------
 
+# data loading and model training
 @st.cache_data
 def load_data():
     df = pd.read_csv("StockPulse_synthetic_data.csv")
@@ -248,9 +245,7 @@ def load_data():
 df_global = load_data()
 
 
-# --------------------------
-#weather normalization
-# ---------------------------
+# weather normalization
 WEATHER_TYPES = [
     "None",
     "Heatwave",
@@ -282,9 +277,7 @@ df_global["Weather_Type"] = df_global["Weather_Type"].apply(
 )
 
 
-# ------------------------------------------------
 # model training and evaluation
-# ------------------------------------------------
 @st.cache_resource(show_spinner="Training Multivariate Forecasting Models...")
 def train_models_in_memory(df):
 
@@ -302,11 +295,8 @@ def train_models_in_memory(df):
 
     # ------------------------------------------------
     # Historical features
-    #
     # IMPORTANT:
-    # No bfill() is used here.
-    # Therefore future observations cannot leak backward
-    # into earlier rows.
+    # No bfill() is used here so future observations cannot leak backwards into earlier rows.
     # ------------------------------------------------
     for item in items_list:
 
@@ -328,9 +318,7 @@ def train_models_in_memory(df):
             )
         )
 
-    # ------------------------------------------------
     # Encode categorical variables
-    # ------------------------------------------------
     df_encoded = pd.get_dummies(
         df_proc,
         columns=["Facility_ID", "Weather_Type"],
@@ -357,9 +345,7 @@ def train_models_in_memory(df):
     models = {}
     evaluation_metrics = {}
 
-    # ------------------------------------------------
     # Train one model per medical item
-    # ------------------------------------------------
     for item in items_list:
 
         target_col = f"Target_{item}_7d_Ahead"
@@ -376,8 +362,7 @@ def train_models_in_memory(df):
             + [target_col]
         )
 
-        # Keep only rows where all required information
-        # genuinely exists.
+        # Keep only rows where all required information genuinely exists.
         item_df = df_encoded[
             required_columns
         ].dropna(
@@ -400,25 +385,12 @@ def train_models_in_memory(df):
 
         y = item_df[target_col]
 
-        # ------------------------------------------------
-        # Time-based validation split
-        # ------------------------------------------------
+        # ------Time-based validation split------
 
         # Sort chronologically before splitting
         item_df = item_df.sort_values("Timestamp").copy()
 
-        # ------------------------------------------------
         # Use a chronological 75/25 split.
-        #
-        # With approximately 2 years of data, this gives
-        # the model roughly 18 months of historical data
-        # and evaluates it on the final ~6 months.
-        #
-        # This ensures:
-        #   - At least one complete seasonal cycle is seen
-        #   - No future observations are used for training
-        #   - All facilities are represented in both periods
-        # ------------------------------------------------
 
         unique_dates = np.sort(
             item_df["Timestamp"].unique()
@@ -463,10 +435,7 @@ def train_models_in_memory(df):
             y_train = y.loc[train_data.index]
             y_test = y.loc[test_data.index]
 
-            # ------------------------------------------------
-            # Train validation model
-            # ------------------------------------------------
-
+            # ------Train validation model------
             validation_model = RandomForestRegressor(
                 n_estimators=100,
                 random_state=42,
@@ -478,39 +447,28 @@ def train_models_in_memory(df):
                 y_train
             )
 
-            # ------------------------------------------------
             # Generate predictions on unseen future period
-            # ------------------------------------------------
-
             test_predictions = validation_model.predict(
                 X_test
             )
 
-            # ------------------------------------------------
-            # Evaluation metrics
-            # ------------------------------------------------
-
+            # ------Evaluation metrics------
             mae = mean_absolute_error(
                 y_test,
                 test_predictions
             )
-
             rmse = np.sqrt(
                 mean_squared_error(
                     y_test,
                     test_predictions
                 )
             )
-
             r2 = r2_score(
                 y_test,
                 test_predictions
             )
 
-            # ------------------------------------------------
             # MAPE
-            # ------------------------------------------------
-
             actual_values = np.asarray(y_test)
             predicted_values = np.asarray(test_predictions)
 
@@ -531,9 +489,7 @@ def train_models_in_memory(df):
             else:
                 mape = np.nan
 
-            # ------------------------------------------------
-            # Store metrics
-            # ------------------------------------------------
+            # ------Store metrics------
 
             evaluation_metrics[item] = {
                 "MAE": float(mae),
@@ -571,12 +527,7 @@ def train_models_in_memory(df):
                 "Test_End": None
             }
 
-        # ------------------------------------------------
-        # Final production model
-        #
-        # After evaluating the model, retrain using all
-        # valid historical observations.
-        # ------------------------------------------------
+        # Final production model after evaluating the model, retrain using all valid historical observations.
         final_model = RandomForestRegressor(
             n_estimators=100,
             random_state=42,
@@ -598,9 +549,7 @@ models_dict, model_metrics = train_models_in_memory(
 )
 
 
-# ------------------------------------------------
-# Date-aware feature preparation
-# ------------------------------------------------
+# ------Date-aware feature preparation------
 def get_historical_features(
     df_facility,
     target_date,
@@ -625,9 +574,7 @@ def get_historical_features(
 
     target_date = pd.Timestamp(target_date).normalize()
 
-    # --------------------------------------------
     # Exact 7-calendar-day lag
-    # --------------------------------------------
     lag_date = target_date - pd.Timedelta(days=7)
 
     lag_rows = df_facility[
@@ -645,9 +592,7 @@ def get_historical_features(
 
     else:
 
-        # Historical fallback:
-        # use the most recent observation on or before
-        # the required lag date.
+        # use the most recent observation on or before the required lag date.
         prior_lag_rows = df_facility[
             df_facility["Timestamp"].dt.normalize()
             <= lag_date
@@ -663,8 +608,7 @@ def get_historical_features(
 
         else:
 
-            # If there is no earlier historical observation,
-            # use the available historical average.
+            # If there is no earlier historical observation, use the available historical average.
             historical_values = df_facility[
                 f"Units_{item_name}"
             ].dropna()
@@ -673,9 +617,7 @@ def get_historical_features(
                 historical_values.mean()
             ) if not historical_values.empty else 0.0
 
-    # --------------------------------------------
     # Previous 7 calendar days rolling average
-    # --------------------------------------------
     rolling_start = target_date - pd.Timedelta(days=7)
 
     rolling_rows = df_facility[
@@ -737,10 +679,7 @@ def prepare_model_features(
         "Admitted_Patients": current_row["Admitted_Patients"]
     }
 
-    # --------------------------------------------
-    # Facility categories are taken from the model
-    # rather than hard-coded.
-    # --------------------------------------------
+    # Facility categories taken from the model's training data to ensure consistency
     facility_categories = [
         col.replace("Facility_ID_", "")
         for col in model_obj.feature_names_in_
@@ -755,9 +694,7 @@ def prepare_model_features(
             current_row["Facility_ID"] == facility
         )
 
-    # --------------------------------------------
     # Weather categories match training exactly
-    # --------------------------------------------
     weather_value = normalize_weather(
         current_row["Weather_Type"]
     )
@@ -776,9 +713,7 @@ def prepare_model_features(
             weather_value == weather
         )
 
-    # --------------------------------------------
     # Date-aware lag and rolling features
-    # --------------------------------------------
     lag_7d, rolling_7d = get_historical_features(
         df_facility,
         target_date,
@@ -797,8 +732,7 @@ def prepare_model_features(
         [base_feats]
     )
 
-    # Guarantee exactly the feature structure
-    # expected by the trained Random Forest.
+    # Guarantee exactly the feature structure expected by the trained Random Forest
     for col in model_obj.feature_names_in_:
 
         if col not in X_df.columns:
@@ -811,9 +745,7 @@ def prepare_model_features(
     return X_df
 
 
-# ==========================================
-# 5. SESSION STATE
-# ==========================================
+# 5------. SESSION STATE------
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -847,13 +779,13 @@ if "order_status" not in st.session_state:
 
 if "user_inventory" not in st.session_state:
     st.session_state.user_inventory = {
-        "N95_Masks": 265,
-        "IV_Fluids": 550,
-        "Antibiotics": 400,
-        "Inhalers": 200,
-        "Insulin_Vials": 90,
-        "Painkillers": 175
-    }
+    "N95_Masks": 100,
+    "IV_Fluids": 250,
+    "Antibiotics": 400,
+    "Inhalers": 80,
+    "Insulin_Vials": 90,
+    "Painkillers": 100
+}
 
 if "model_metrics" not in st.session_state:
     st.session_state.model_metrics = model_metrics
@@ -949,7 +881,7 @@ if not st.session_state.logged_in:
 # ==========================================
 
 st.sidebar.markdown(
-    "# ⚡ StockPulse AI"
+    "# StockPulse AI"
 )
 
 nav_selection = st.sidebar.radio(
@@ -962,7 +894,7 @@ nav_selection = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 
-if st.sidebar.button("🚪 Logout"):
+if st.sidebar.button("Logout"):
 
     st.session_state.logged_in = False
     st.session_state.messages = []
@@ -972,10 +904,7 @@ if st.sidebar.button("🚪 Logout"):
 st.sidebar.markdown("---")
 
 
-# ------------------------------------------
-# Dashboard inventory controls
-# ------------------------------------------
-
+# ------Dashboard inventory controls------
 if nav_selection == "Dashboard":
 
     st.sidebar.markdown(
@@ -1009,18 +938,13 @@ st.sidebar.text(
 )
 
 
-# ==========================================
-# INVENTORY / FORECAST CONFIGURATION
-# ==========================================
+# ------INVENTORY / FORECAST CONFIGURATION------
 
-# Kept as the existing 20% rule, but named
-# Forecast Buffer rather than statistical Safety Stock.
+# Kept as the existing 20% rule
 FORECAST_BUFFER_PCT = 0.20
 
 
-# ==========================================
-# MAIN APPLICATION DATA
-# ==========================================
+# ------MAIN APPLICATION DATA------
 
 df_hosp = df_global[
     df_global["Facility_ID"]
@@ -1030,9 +954,7 @@ df_hosp = df_global[
 ).reset_index(drop=True)
 
 
-# ==========================================
-# SIMULATED OPERATIONAL ROW
-# ==========================================
+# ------SIMULATED OPERATIONAL ROW------
 
 def generate_simulated_row(
     target_dt,
@@ -1294,7 +1216,7 @@ def generate_simulated_row(
 if nav_selection == "Dashboard":
 
     st.markdown(
-        "# 📊 StockPulse Executive Dashboard"
+        "#  StockPulse Executive Dashboard"
     )
 
     st.markdown(
@@ -1499,9 +1421,7 @@ if nav_selection == "Dashboard":
                 "Local Temperature"
             )
 
-    # --------------------------------------------
-    # Session state
-    # --------------------------------------------
+    # ------Session state------
 
     st.session_state.predicted_orders = (
         predicted_orders
@@ -1646,12 +1566,10 @@ if nav_selection == "Dashboard":
     )
 
 
-    # ==========================================
-    # MODEL EVALUATION
-    # ==========================================
+    # ------MODEL EVALUATION------
 
     with st.expander(
-        "📊 Forecast Model Performance",
+        "Forecast Model Performance",
         expanded=False
     ):
 
@@ -1978,9 +1896,7 @@ elif nav_selection == "Orders & Procurement":
     st.session_state["forecast_df"] = df_f
 
 
-    # ------------------------------------------
-    # Inventory snapshot on procurement page
-    # ------------------------------------------
+    # ------Inventory snapshot on procurement page------
 
     st.markdown(
         "### 📦 Inventory Snapshot"
@@ -2329,9 +2245,7 @@ Chief Pharmacist / Supply Chain Operations
                             []
                         )
 
-                        # -----------------------------
                         # RAG COMPLIANCE ANSWER
-                        # -----------------------------
                         st.markdown("### 🛡️ Policy & Compliance Summary")
 
                         st.markdown(
@@ -2343,9 +2257,7 @@ Chief Pharmacist / Supply Chain Operations
                             unsafe_allow_html=True
                         )
 
-                        # -----------------------------
                         # SOURCE DOCUMENTS
-                        # -----------------------------
                         if source_docs:
                             st.markdown("### 📚 Source Documents")
 
@@ -2381,9 +2293,8 @@ Chief Pharmacist / Supply Chain Operations
                     st.warning(
                         "RAG compliance module is not available."
                     )
-    # ==========================================
-    # REJECTION AUDIT LOGS
-    # ==========================================
+
+    # ------REJECTION AUDIT LOGS------
 
     st.markdown("---")
 
