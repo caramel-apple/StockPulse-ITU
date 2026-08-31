@@ -22,9 +22,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-#----------------------
-#Styling
-#----------------------
+#----------------------------------
+#styling
+#----------------------------------
 
 st.markdown("""
 <style>
@@ -365,7 +365,8 @@ def train_models_in_memory(df):
         target_col = f"Target_{item}_7d_Ahead"
 
         required_columns = (
-            base_features
+            ["Timestamp"]
+            + base_features
             + facility_cols
             + weather_cols
             + [
@@ -402,28 +403,72 @@ def train_models_in_memory(df):
         # ------------------------------------------------
         # Time-based validation split
         # ------------------------------------------------
-        split_date = item_df["Timestamp"].quantile(0.80) \
-            if "Timestamp" in item_df.columns else None
 
-        # Timestamp is not part of required_columns above,
-        # so use the original dataframe index to create the split.
-        valid_indices = item_df.index
+        # Sort chronologically before splitting
+        item_df = item_df.sort_values("Timestamp").copy()
 
-        if len(valid_indices) >= 10:
+        # ------------------------------------------------
+        # Use a chronological 75/25 split.
+        #
+        # With approximately 2 years of data, this gives
+        # the model roughly 18 months of historical data
+        # and evaluates it on the final ~6 months.
+        #
+        # This ensures:
+        #   - At least one complete seasonal cycle is seen
+        #   - No future observations are used for training
+        #   - All facilities are represented in both periods
+        # ------------------------------------------------
 
-            split_position = int(len(valid_indices) * 0.80)
+        unique_dates = np.sort(
+            item_df["Timestamp"].unique()
+        )
 
-            train_indices = valid_indices[:split_position]
-            test_indices = valid_indices[split_position:]
+        if len(unique_dates) >= 20:
 
-            X_train = X_item.loc[train_indices]
-            X_test = X_item.loc[test_indices]
+            split_position = int(
+                len(unique_dates) * 0.75
+            )
 
-            y_train = y.loc[train_indices]
-            y_test = y.loc[test_indices]
+            split_date = unique_dates[split_position]
+
+            # Training = earlier dates
+            train_mask = (
+                item_df["Timestamp"] < split_date
+            )
+
+            # Testing = later dates
+            test_mask = (
+                item_df["Timestamp"] >= split_date
+            )
+
+            train_data = item_df.loc[train_mask]
+            test_data = item_df.loc[test_mask]
+
+            X_item = item_df[
+                base_features
+                + facility_cols
+                + weather_cols
+                + [
+                    f"{item}_Lag_7d",
+                    f"{item}_Rolling_7d"
+                ]
+            ]
+
+            y = item_df[target_col]
+
+            X_train = X_item.loc[train_data.index]
+            X_test = X_item.loc[test_data.index]
+
+            y_train = y.loc[train_data.index]
+            y_test = y.loc[test_data.index]
+
+            # ------------------------------------------------
+            # Train validation model
+            # ------------------------------------------------
 
             validation_model = RandomForestRegressor(
-                n_estimators=50,
+                n_estimators=100,
                 random_state=42,
                 n_jobs=-1
             )
@@ -433,9 +478,17 @@ def train_models_in_memory(df):
                 y_train
             )
 
+            # ------------------------------------------------
+            # Generate predictions on unseen future period
+            # ------------------------------------------------
+
             test_predictions = validation_model.predict(
                 X_test
             )
+
+            # ------------------------------------------------
+            # Evaluation metrics
+            # ------------------------------------------------
 
             mae = mean_absolute_error(
                 y_test,
@@ -454,13 +507,17 @@ def train_models_in_memory(df):
                 test_predictions
             )
 
-            # MAPE with protection against zero actual values
+            # ------------------------------------------------
+            # MAPE
+            # ------------------------------------------------
+
             actual_values = np.asarray(y_test)
             predicted_values = np.asarray(test_predictions)
 
             non_zero_mask = actual_values != 0
 
             if np.any(non_zero_mask):
+
                 mape = np.mean(
                     np.abs(
                         (
@@ -470,22 +527,48 @@ def train_models_in_memory(df):
                         / actual_values[non_zero_mask]
                     )
                 ) * 100
+
             else:
                 mape = np.nan
+
+            # ------------------------------------------------
+            # Store metrics
+            # ------------------------------------------------
 
             evaluation_metrics[item] = {
                 "MAE": float(mae),
                 "RMSE": float(rmse),
                 "R2": float(r2),
-                "MAPE": float(mape) if not np.isnan(mape) else None
+                "MAPE": (
+                    float(mape)
+                    if not np.isnan(mape)
+                    else None
+                ),
+                "Train_Start": str(
+                    train_data["Timestamp"].min().date()
+                ),
+                "Train_End": str(
+                    train_data["Timestamp"].max().date()
+                ),
+                "Test_Start": str(
+                    test_data["Timestamp"].min().date()
+                ),
+                "Test_End": str(
+                    test_data["Timestamp"].max().date()
+                )
             }
 
         else:
+
             evaluation_metrics[item] = {
                 "MAE": None,
                 "RMSE": None,
                 "R2": None,
-                "MAPE": None
+                "MAPE": None,
+                "Train_Start": None,
+                "Train_End": None,
+                "Test_Start": None,
+                "Test_End": None
             }
 
         # ------------------------------------------------
@@ -495,7 +578,7 @@ def train_models_in_memory(df):
         # valid historical observations.
         # ------------------------------------------------
         final_model = RandomForestRegressor(
-            n_estimators=50,
+            n_estimators=100,
             random_state=42,
             n_jobs=-1
         )
@@ -1215,9 +1298,9 @@ if nav_selection == "Dashboard":
     )
 
     st.markdown(
-        f"Real-time predictive analytics and autonomous "
-        f"stock monitoring for *{st.session_state.hospital}*."
-    )
+    f"AI-powered predictive analytics and autonomous "
+    f"stock monitoring for *{st.session_state.hospital}*."
+)
 
     min_date = datetime(
         2026,
@@ -1572,12 +1655,6 @@ if nav_selection == "Dashboard":
         expanded=False
     ):
 
-        st.markdown(
-            "Performance is calculated using a time-based "
-            "validation split. No future observations are "
-            "used to create historical lag features."
-        )
-
         metrics_rows = []
 
         for item in items_list:
@@ -1627,7 +1704,7 @@ if nav_selection == "Dashboard":
     with chart_col:
 
         st.markdown(
-            "### 📈 Demand Trend & Live AI Prediction"
+            "### 7-Day Demand Forecast"
         )
 
         selected_product = st.selectbox(
@@ -1645,9 +1722,11 @@ if nav_selection == "Dashboard":
 
         # Explicitly distinguish simulated demand
         # from the AI's +7-day prediction.
+        forecast_date = selected_date + pd.Timedelta(days=7)
+
         x_vals = [
-            f"Projected ({selected_date.strftime('%b %d')})",
-            f"AI Forecast (+7d)"
+            f"Selected Date\n{selected_date.strftime('%b %d')}",
+            f"Forecast (+7d)\n{forecast_date.strftime('%b %d')}"
         ]
 
         y_vals = [
@@ -1669,7 +1748,8 @@ if nav_selection == "Dashboard":
                     f"{val:.0f} units"
                     for val in y_vals
                 ],
-                textposition="auto"
+                textposition="auto",
+                name="Demand"
             )
         )
 
@@ -1685,7 +1765,7 @@ if nav_selection == "Dashboard":
                 marker=dict(
                     size=8
                 ),
-                name="Forecast"
+                name="Demand"
             )
         )
 
@@ -1700,7 +1780,7 @@ if nav_selection == "Dashboard":
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(
-                title="Units Consumed / Predicted"
+                title="Medical Supply Units"
             ),
             showlegend=False
         )
@@ -1711,9 +1791,10 @@ if nav_selection == "Dashboard":
         )
 
         st.caption(
-            "The selected-date demand is simulated from "
-            "facility, weather, flu and patient-load assumptions. "
-            "The AI Forecast represents predicted demand 7 days ahead."
+            f"Demand shown for {selected_date.strftime('%b %d, %Y')} "
+            f"is simulated from facility, weather, flu and patient-load "
+            f"assumptions. The second value is the AI forecast for "
+            f"{forecast_date.strftime('%b %d, %Y')} (+7 days)."
         )
 
 
